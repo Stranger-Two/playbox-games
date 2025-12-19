@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PlayBox Games</title>
+<style>
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:linear-gradient(135deg,#1f1c2c,#928dab);
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.container{
+  background:rgba(0,0,0,0.7);
+  padding:20px;
+  width:420px;
+  border-radius:14px;
+  text-align:center;
+}
+button{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border:none;
+  border-radius:8px;
+  background:#00e5ff;
+  font-weight:bold;
+  cursor:pointer;
+}
+canvas{
+  background:#111;
+  border-radius:10px;
+  display:block;
+  margin:10px auto;
+}
+.hidden{display:none;}
+.stats{display:flex;justify-content:space-between;}
+/* GAME OVER */
+#gameOver{
+  position:absolute;
+  background:rgba(0,0,0,0.9);
+  inset:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+}
+.overBox{
+  background:#222;
+  padding:20px;
+  border-radius:12px;
+  width:300px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>🎮 PlayBox</h1>
+
+<div id="menu">
+  <button onclick="startDodger()">🟥 Block Dodger</button>
+  <button onclick="startClicker()">⚡ Speed Clicker+</button>
+  <button onclick="startChaser()">👾 Enemy Chaser</button>
+</div>
+
+<div id="gameArea" class="hidden">
+  <canvas id="game" width="300" height="300"></canvas>
+  <div class="stats">
+    <span id="score">Score: 0</span>
+    <span id="level">Level: 1</span>
+  </div>
+</div>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div id="gameOver" class="hidden">
+  <div class="overBox">
+    <h2>GAME OVER</h2>
+    <p id="finalStats"></p>
+    <button onclick="retryGame()">🔁 Retry</button>
+    <button onclick="backToMenu()">⬅ Menu</button>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const menu=document.getElementById("menu");
+const gameArea=document.getElementById("gameArea");
+const gameOverBox=document.getElementById("gameOver");
+const finalStats=document.getElementById("finalStats");
+const scoreEl=document.getElementById("score");
+const levelEl=document.getElementById("level");
+
+let interval,player,enemy,score,level,speed,mode,timer;
+
+function showGame(){
+  menu.classList.add("hidden");
+  gameArea.classList.remove("hidden");
+}
+
+function backToMenu(){
+  clearInterval(interval);
+  clearInterval(timer);
+  canvas.onclick=null;
+  ctx.clearRect(0,0,300,300);
+  gameOverBox.classList.add("hidden");
+  gameArea.classList.add("hidden");
+  menu.classList.remove("hidden");
+}
+
+function gameOver(){
+  clearInterval(interval);
+  clearInterval(timer);
+  gameOverBox.classList.remove("hidden");
+  finalStats.innerText=`Score: ${score} | Level: ${level}`;
+}
+
+function retryGame(){
+  gameOverBox.classList.add("hidden");
+  if(mode==="dodger") startDodger();
+  if(mode==="clicker") startClicker();
+  if(mode==="chaser") startChaser();
+}
+
+/* -------- BLOCK DODGER -------- */
+function startDodger(){
+  mode="dodger";
+  showGame();
+  score=0;level=1;speed=3;
+  player={x:140,y:260,size:20};
+  enemy={x:Math.random()*280,y:0,size:20};
+  updateStats();
+
+  interval=setInterval(()=>{
+    ctx.clearRect(0,0,300,300);
+    enemy.y+=speed;
+    if(enemy.y>300){
+      enemy.y=0;enemy.x=Math.random()*280;
+      score++; if(score%5===0){level++;speed++;}
+      updateStats();
+    }
+    if(collide(player,enemy)) gameOver();
+    draw(player,"#00e5ff");
+    draw(enemy,"#ff5252");
+  },30);
+}
+
+/* -------- SPEED CLICKER+ -------- */
+function startClicker(){
+  mode="clicker";
+  showGame();
+  score=0;level=1;
+  updateStats();
+
+  let timeLeft=10;
+  timer=setInterval(()=>{
+    timeLeft--;
+    if(timeLeft<=0) gameOver();
+  },1000);
+
+  moveTarget();
+  canvas.onclick=()=>{
+    score++;
+    updateStats();
+    moveTarget();
+  };
+}
+
+function moveTarget(){
+  ctx.clearRect(0,0,300,300);
+  let x=Math.random()*240+30;
+  let y=Math.random()*240+30;
+  ctx.beginPath();
+  ctx.arc(x,y,25,0,Math.PI*2);
+  ctx.fillStyle="#00e5ff";
+  ctx.fill();
+}
+
+/* -------- ENEMY CHASER -------- */
+function startChaser(){
+  mode="chaser";
+  showGame();
+  score=0;level=1;speed=1.5;
+  player={x:140,y:140,size:20};
+  enemy={x:20,y:20,size:20};
+  updateStats();
+
+  interval=setInterval(()=>{
+    ctx.clearRect(0,0,300,300);
+    enemy.x+=(player.x-enemy.x)*0.03*speed;
+    enemy.y+=(player.y-enemy.y)*0.03*speed;
+    score++; if(score%200===0){level++;speed+=0.4;}
+    updateStats();
+    if(collide(player,enemy)) gameOver();
+    draw(player,"#00e5ff");
+    draw(enemy,"#ff9800");
+  },30);
+}
+
+/* HELPERS */
+function draw(o,c){
+  ctx.fillStyle=c;
+  ctx.fillRect(o.x,o.y,o.size,o.size);
+}
+function collide(a,b){
+  return a.x<b.x+b.size && a.x+a.size>b.x &&
+         a.y<b.y+b.size && a.y+a.size>b.y;
+}
+function updateStats(){
+  scoreEl.textContent="Score: "+score;
+  levelEl.textContent="Level: "+level;
+}
+
+/* CONTROLS */
+document.addEventListener("keydown",e=>{
+  if(!player) return;
+  if(e.key==="ArrowLeft"&&player.x>0)player.x-=15;
+  if(e.key==="ArrowRight"&&player.x<280)player.x+=15;
+  if(e.key==="ArrowUp"&&player.y>0)player.y-=15;
+  if(e.key==="ArrowDown"&&player.y<280)player.y+=15;
+});
+</script>
+</body>
+</html>
